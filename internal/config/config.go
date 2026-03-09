@@ -12,25 +12,25 @@ type Config struct {
 
 func NewConfig() *Config {
 	cfg := &Config{}
-	defaultAddress := "localhost:8080"
-	defaultBaseURL := ""
-	flag.StringVar(&cfg.ServerAddress, "a", defaultAddress, "HTTP server address (host:port)")
-	flag.StringVar(&cfg.BaseURL, "b", defaultBaseURL, "Base URL for shortened links")
 
-	flag.Parse()
+	flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "HTTP server address")
+	flag.StringVar(&cfg.BaseURL, "b", "", "Base URL for shortened links")
 
-	// сначала проверяем переменные окружения
-	if envAddr := os.Getenv("SERVER_ADDRESS"); envAddr != "" {
-		cfg.ServerAddress = envAddr
+	if !flag.Parsed() {
+		flag.Parse()
 	}
 
-	if envBase := os.Getenv("BASE_URL"); envBase != "" {
-		cfg.BaseURL = envBase
+	if env := os.Getenv("SERVER_ADDRESS"); env != "" {
+		cfg.ServerAddress = env
 	}
 
-	// если BaseURL всё ещё пустой — строим по ServerAddress
+	if env := os.Getenv("BASE_URL"); env != "" {
+		cfg.BaseURL = env
+	}
+
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "http://" + cfg.ServerAddress
 	}
+
 	return cfg
 }
