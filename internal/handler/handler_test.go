@@ -27,7 +27,7 @@ func TestHandlerPost(t *testing.T) {
 	if res.StatusCode != http.StatusCreated {
 		t.Errorf("expected 201, got %d", res.StatusCode)
 	}
-	if !strings.HasPrefix(w.Body.String(), "http://localhost:8080/") {
+	if !strings.HasPrefix(w.Body.String(), cfg.ServerAddress) {
 		t.Errorf("wrong short url format")
 	}
 }
