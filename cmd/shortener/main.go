@@ -26,8 +26,8 @@ func main() {
 		r.Get("/{id}", h.HandlerGet)
 	})
 	r.Group(func(r chi.Router) {
-		r.Use(logger.RequestLogger)
-		r.Get("/{id}", h.HandlerGet)
+		r.Use(logger.ResponseLogger)
+		r.Get("/", h.HandlerPost)
 	})
 	log.Printf("Server starts: %s", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
