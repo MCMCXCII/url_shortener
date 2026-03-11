@@ -16,9 +16,7 @@ func NewConfig() *Config {
 	flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "HTTP server address")
 	flag.StringVar(&cfg.BaseURL, "b", "", "Base URL for shortened links")
 
-	if !flag.Parsed() {
-		flag.Parse()
-	}
+	flag.Parse()
 
 	if env := os.Getenv("SERVER_ADDRESS"); env != "" {
 		cfg.ServerAddress = env
