@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/MCMCXCII/url_shortener/internal/config"
+	"github.com/MCMCXCII/url_shortener/internal/logger"
 	"github.com/MCMCXCII/url_shortener/internal/service"
 	"github.com/go-chi/chi/v5"
 )
@@ -48,4 +50,31 @@ func (h *Handler) HandlerGet(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+type ShortenRequest struct {
+	Url string `json:"url"`
+}
+
+type ShortenResponse struct {
+	Result string `json:"result"`
+}
+
+func (h *Handler) HandlerJSONPost(w http.ResponseWriter, r *http.Request) {
+	var body ShortenRequest
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		logger.Log.Debug("json decode error")
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	id := h.service.Create(body.Url)
+
+	shortURL := h.cfg.BaseURL + "/" + id
+	resp := ShortenResponse{
+		Result: shortURL,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
 }

@@ -29,6 +29,10 @@ func main() {
 		r.Use(logger.ResponseLogger)
 		r.Post("/", h.HandlerPost)
 	})
+	r.Group(func(r chi.Router) {
+		r.Use(logger.ResponseLogger)
+		r.Post("/api/shorten", h.HandlerJSONPost)
+	})
 	log.Printf("Server starts: %s", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
 		log.Fatal(err)
