@@ -7,6 +7,7 @@ import (
 	"github.com/MCMCXCII/url_shortener/internal/config"
 	"github.com/MCMCXCII/url_shortener/internal/handler"
 	"github.com/MCMCXCII/url_shortener/internal/logger"
+	"github.com/MCMCXCII/url_shortener/internal/middleware"
 	"github.com/MCMCXCII/url_shortener/internal/repository"
 	"github.com/MCMCXCII/url_shortener/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -21,18 +22,15 @@ func main() {
 	logger.Initialize(cfg.LogLevel)
 
 	r := chi.NewRouter()
+
+	r.Use(middleware.RequestLogger)
+	r.Use(middleware.ResponseLogger)
 	r.Group(func(r chi.Router) {
-		r.Use(logger.RequestLogger)
-		r.Get("/{id}", h.HandlerGet)
-	})
-	r.Group(func(r chi.Router) {
-		r.Use(logger.ResponseLogger)
+		r.Use(middleware.GzipMiddleware)
+		r.Post("/api/shorten", h.HandlerJSONPost)
 		r.Post("/", h.HandlerPost)
 	})
-	r.Group(func(r chi.Router) {
-		r.Use(logger.ResponseLogger)
-		r.Post("/api/shorten", h.HandlerJSONPost)
-	})
+	r.Get("/{id}", h.HandlerGet)
 	log.Printf("Server starts: %s", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
 		log.Fatal(err)

@@ -1,9 +1,11 @@
-package logger
+package middleware
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/MCMCXCII/url_shortener/internal/logger"
 	"go.uber.org/zap"
 )
 
@@ -33,7 +35,7 @@ func RequestLogger(h http.Handler) http.Handler {
 		start := time.Now()
 		h.ServeHTTP(w, r)
 		duration := time.Since(start)
-		Log.Debug("request",
+		logger.Log.Debug("request",
 			zap.String("method", r.Method),
 			zap.String("path", r.URL.Path),
 			zap.Duration("duration", duration))
@@ -52,8 +54,36 @@ func ResponseLogger(h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(&lw, r)
 
-		Log.Debug("response",
+		logger.Log.Debug("response",
 			zap.Int("status code", responseData.code),
 			zap.Int("size", responseData.size))
+	})
+}
+
+func GzipMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ow := w
+
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		supportsGzip := strings.Contains(acceptEncoding, "gzip")
+
+		if supportsGzip {
+			cw := newCompressWriter(w)
+			ow = cw
+			defer cw.Close()
+		}
+
+		contentEncoding := r.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
+		if sendsGzip {
+			cr, err := newCompressReader(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			r.Body = cr
+			defer cr.Close()
+		}
+		h.ServeHTTP(ow, r)
 	})
 }
