@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/MCMCXCII/url_shortener/internal/logger"
@@ -64,7 +63,7 @@ func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		// 1. Распаковка входящего gzip
-		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+		if r.Header.Get("Content-Encoding") == "gzip" {
 			cr, err := newCompressReader(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -74,17 +73,17 @@ func GzipMiddleware(h http.Handler) http.Handler {
 			defer cr.Close()
 		}
 
-		// 2. Проверяем, поддерживает ли клиент gzip
-		supportsGzip := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
+		// 2. Проверяем поддержку gzip
+		// ВАЖНО: только строгое совпадение
+		supportsGzip := r.Header.Get("Accept-Encoding") == "gzip"
 
-		// 3. Если не поддерживает — просто вызываем хендлер
 		if !supportsGzip {
 			h.ServeHTTP(w, r)
 			return
 		}
 
-		// 4. Оборачиваем writer, но gzip включится ТОЛЬКО после WriteHeader
-		cw := newCompressWriter(w, true)
+		// 3. Оборачиваем writer
+		cw := newCompressWriter(w)
 		defer cw.Close()
 
 		h.ServeHTTP(cw, r)
