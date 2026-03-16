@@ -24,7 +24,7 @@ func main() {
 	r := chi.NewRouter()
 
 	// Глобальные middleware — ВСЕГДА идут первыми
-	r.Use(middleware.gzipMiddleware)
+	r.Use(middleware.GzipMiddleware)
 	// POST‑маршруты логируются ResponseLogger
 	r.With(middleware.ResponseLogger).
 		Post("/", h.HandlerPost)
