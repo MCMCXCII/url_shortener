@@ -23,10 +23,12 @@ func main() {
 
 	r := chi.NewRouter()
 
-	r.Use(middleware.GzipMiddleware)
 	r.With(middleware.ResponseLogger).Post("/", h.HandlerPost)
 	r.With(middleware.ResponseLogger).Post("/api/shorten", h.HandlerJSONPost)
 	r.With(middleware.RequestLogger).Get("/{id}", h.HandlerGet)
+
+	r.Use(middleware.GzipMiddleware)
+
 	log.Printf("Server starts: %s", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
 		log.Fatal(err)
