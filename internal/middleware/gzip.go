@@ -8,52 +8,23 @@ import (
 )
 
 type compressWriter struct {
-	w           http.ResponseWriter
-	zw          *gzip.Writer
-	compress    bool
-	wroteHeader bool
-	statusCode  int
+	w            http.ResponseWriter
+	zw           *gzip.Writer
+	compress     bool
+	wroteHeader  bool
+	statusCode   int
+	supportsGzip bool
 }
 
-func newCompressWriter(w http.ResponseWriter) *compressWriter {
+func newCompressWriter(w http.ResponseWriter, supportsGzip bool) *compressWriter {
 	return &compressWriter{
-		w: w,
+		w:            w,
+		supportsGzip: supportsGzip,
 	}
 }
 
 func (c *compressWriter) Header() http.Header {
 	return c.w.Header()
-}
-
-func (c *compressWriter) Write(p []byte) (int, error) {
-	// если заголовок ещё не отправлен — отправляем 200
-	if !c.wroteHeader {
-		c.WriteHeader(http.StatusOK)
-	}
-
-	// ❗ тело редиректов (3xx) НЕ пишем
-	if c.statusCode >= 300 && c.statusCode < 400 {
-		return len(p), nil
-	}
-
-	// включаем gzip только если ещё не включён
-	if !c.compress {
-		ct := c.w.Header().Get("Content-Type")
-
-		if strings.HasPrefix(ct, "application/json") ||
-			strings.HasPrefix(ct, "text/html") {
-
-			c.w.Header().Set("Content-Encoding", "gzip")
-			c.zw = gzip.NewWriter(c.w)
-			c.compress = true
-		}
-	}
-
-	if c.compress {
-		return c.zw.Write(p)
-	}
-
-	return c.w.Write(p)
 }
 
 func (c *compressWriter) WriteHeader(statusCode int) {
@@ -63,12 +34,47 @@ func (c *compressWriter) WriteHeader(statusCode int) {
 	c.wroteHeader = true
 	c.statusCode = statusCode
 
-	// ❗ gzip для редиректов запрещён
+	// редиректы не сжимаем
 	if statusCode >= 300 && statusCode < 400 {
 		c.compress = false
 	}
 
 	c.w.WriteHeader(statusCode)
+}
+
+func (c *compressWriter) Write(p []byte) (int, error) {
+	if !c.wroteHeader {
+		c.WriteHeader(http.StatusOK)
+	}
+
+	// тело редиректов не пишем
+	if c.statusCode >= 300 && c.statusCode < 400 {
+		return len(p), nil
+	}
+
+	// решаем, включать ли gzip
+	if !c.compress {
+		if !c.supportsGzip {
+			return c.w.Write(p)
+		}
+
+		ct := c.w.Header().Get("Content-Type")
+
+		if strings.HasPrefix(ct, "application/json") ||
+			strings.HasPrefix(ct, "text/html") {
+
+			c.w.Header().Set("Content-Encoding", "gzip")
+			zw := gzip.NewWriter(c.w)
+			c.zw = zw
+			c.compress = true
+		}
+	}
+
+	if c.compress {
+		return c.zw.Write(p)
+	}
+
+	return c.w.Write(p)
 }
 
 func (c *compressWriter) Close() error {
