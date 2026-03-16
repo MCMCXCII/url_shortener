@@ -8,7 +8,7 @@ import (
 )
 
 type compressWriter struct {
-	http.ResponseWriter
+	rw           http.ResponseWriter
 	zw           *gzip.Writer
 	compress     bool
 	wroteHeader  bool
@@ -17,9 +17,13 @@ type compressWriter struct {
 
 func newCompressWriter(w http.ResponseWriter, supportsGzip bool) *compressWriter {
 	return &compressWriter{
-		ResponseWriter: w,
-		supportsGzip:   supportsGzip,
+		rw:           w,
+		supportsGzip: supportsGzip,
 	}
+}
+
+func (c *compressWriter) Header() http.Header {
+	return c.rw.Header()
 }
 
 func (c *compressWriter) WriteHeader(statusCode int) {
@@ -33,7 +37,7 @@ func (c *compressWriter) WriteHeader(statusCode int) {
 		c.compress = false
 	}
 
-	c.ResponseWriter.WriteHeader(statusCode)
+	c.rw.WriteHeader(statusCode)
 }
 
 func (c *compressWriter) Write(p []byte) (int, error) {
@@ -41,20 +45,20 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 		c.WriteHeader(http.StatusOK)
 	}
 
-	// редиректы — не пишем тело
-	if c.compress == false && (c.ResponseWriter.Header().Get("Location") != "") {
+	// редирект — не пишем тело
+	if c.rw.Header().Get("Location") != "" {
 		return len(p), nil
 	}
 
 	// решаем, включать ли gzip
 	if !c.compress && c.supportsGzip {
-		ct := c.ResponseWriter.Header().Get("Content-Type")
+		ct := c.rw.Header().Get("Content-Type")
 
 		if strings.HasPrefix(ct, "application/json") ||
 			strings.HasPrefix(ct, "text/html") {
 
-			c.ResponseWriter.Header().Set("Content-Encoding", "gzip")
-			c.zw = gzip.NewWriter(c.ResponseWriter)
+			c.rw.Header().Set("Content-Encoding", "gzip")
+			c.zw = gzip.NewWriter(c.rw)
 			c.compress = true
 		}
 	}
@@ -63,7 +67,7 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 		return c.zw.Write(p)
 	}
 
-	return c.ResponseWriter.Write(p)
+	return c.rw.Write(p)
 }
 
 func (c *compressWriter) Close() error {
