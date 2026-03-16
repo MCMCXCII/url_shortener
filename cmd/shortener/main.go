@@ -15,24 +15,41 @@ import (
 
 func main() {
 	cfg := config.NewConfig()
+	logger.Initialize(cfg.LogLevel)
+	log.Printf("Starting server with config: %+v", cfg)
 
-	repo := repository.NewMemoryRepository()
+	// Инициализация хранилища
+	storage, err := initStorage(cfg.FileStorage)
+	if err != nil {
+		log.Fatalf("Failed to initialize storage: %v", err)
+	}
+
+	// Репозиторий
+	repo := repository.NewMemoryRepository(storage)
+	if err := repo.Load(); err != nil {
+		log.Fatalf("Failed to load data: %v", err)
+	}
+
+	// Сервис и хендлеры
 	svc := service.NewShortener(repo)
 	h := handler.NewHandler(svc, cfg)
-	logger.Initialize(cfg.LogLevel)
 
+	// Роутер и middleware
 	r := chi.NewRouter()
+	r.Use(middleware.GzipMiddleware)
+	r.With(middleware.ResponseLogger).Post("/", h.HandlerPost)
+	r.With(middleware.ResponseLogger).Post("/api/shorten", h.HandlerJSONPost)
+	r.With(middleware.RequestLogger).Get("/{id}", h.HandlerGet)
 
-	r.Use(middleware.RequestLogger)
-	r.Use(middleware.ResponseLogger)
-	r.Group(func(r chi.Router) {
-		r.Use(middleware.GzipMiddleware)
-		r.Post("/api/shorten", h.HandlerJSONPost)
-		r.Post("/", h.HandlerPost)
-	})
-	r.Get("/{id}", h.HandlerGet)
-	log.Printf("Server starts: %s", cfg.ServerAddress)
+	log.Printf("Server listening on %s", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Server stopped with error: %v", err)
 	}
+}
+
+func initStorage(filename string) (*repository.FileStorage, error) {
+	if filename == "" {
+		return nil, nil
+	}
+	return repository.NewFileStorage(filename)
 }
