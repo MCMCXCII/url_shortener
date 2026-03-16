@@ -4,79 +4,44 @@ import (
 	"compress/gzip"
 	"io"
 	"net/http"
-	"strings"
 )
 
+// compressWriter реализует интерфейс http.ResponseWriter и позволяет прозрачно для сервера
+// сжимать передаваемые данные и выставлять правильные HTTP-заголовки
 type compressWriter struct {
-	rw          http.ResponseWriter
-	zw          *gzip.Writer
-	compressed  bool
-	wroteHeader bool
+	w  http.ResponseWriter
+	zw *gzip.Writer
 }
 
 func newCompressWriter(w http.ResponseWriter) *compressWriter {
-	return &compressWriter{rw: w}
+	return &compressWriter{
+		w:  w,
+		zw: gzip.NewWriter(w),
+	}
 }
 
 func (c *compressWriter) Header() http.Header {
-	return c.rw.Header()
-}
-
-func (c *compressWriter) WriteHeader(statusCode int) {
-	if c.wroteHeader {
-		return
-	}
-	c.wroteHeader = true
-
-	// редиректы не сжимаем
-	if statusCode >= 300 && statusCode < 400 {
-		c.compressed = false
-	}
-
-	c.rw.WriteHeader(statusCode)
+	return c.w.Header()
 }
 
 func (c *compressWriter) Write(p []byte) (int, error) {
-	if !c.wroteHeader {
-		c.WriteHeader(http.StatusOK)
-	}
-
-	// редирект — не пишем тело
-	if c.rw.Header().Get("Location") != "" {
-		return len(p), nil
-	}
-
-	// включаем gzip только если Content-Type уже известен
-	if !c.compressed {
-		ct := c.rw.Header().Get("Content-Type")
-
-		if strings.HasPrefix(ct, "application/json") ||
-			strings.HasPrefix(ct, "text/html") {
-
-			c.rw.Header().Set("Content-Encoding", "gzip")
-			c.zw = gzip.NewWriter(c.rw)
-			c.compressed = true
-		}
-	}
-
-	if c.compressed {
-		return c.zw.Write(p)
-	}
-
-	return c.rw.Write(p)
+	return c.zw.Write(p)
 }
 
+func (c *compressWriter) WriteHeader(statusCode int) {
+	if statusCode < 300 {
+		c.w.Header().Set("Content-Encoding", "gzip")
+	}
+	c.w.WriteHeader(statusCode)
+}
+
+// Close закрывает gzip.Writer и досылает все данные из буфера.
 func (c *compressWriter) Close() error {
-	if c.compressed && c.zw != nil {
-		return c.zw.Close()
-	}
-	return nil
+	return c.zw.Close()
 }
 
-// ---------------------------
-// GZIP READER
-// ---------------------------
-
+// compressReader реализует интерфейс io.ReadCloser и позволяет прозрачно для сервера
+// декомпрессировать получаемые от клиента данные
 type compressReader struct {
 	r  io.ReadCloser
 	zr *gzip.Reader
