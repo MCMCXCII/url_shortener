@@ -8,23 +8,18 @@ import (
 )
 
 type compressWriter struct {
-	w            http.ResponseWriter
+	http.ResponseWriter
 	zw           *gzip.Writer
 	compress     bool
 	wroteHeader  bool
-	statusCode   int
 	supportsGzip bool
 }
 
 func newCompressWriter(w http.ResponseWriter, supportsGzip bool) *compressWriter {
 	return &compressWriter{
-		w:            w,
-		supportsGzip: supportsGzip,
+		ResponseWriter: w,
+		supportsGzip:   supportsGzip,
 	}
-}
-
-func (c *compressWriter) Header() http.Header {
-	return c.w.Header()
 }
 
 func (c *compressWriter) WriteHeader(statusCode int) {
@@ -32,14 +27,13 @@ func (c *compressWriter) WriteHeader(statusCode int) {
 		return
 	}
 	c.wroteHeader = true
-	c.statusCode = statusCode
 
 	// редиректы не сжимаем
 	if statusCode >= 300 && statusCode < 400 {
 		c.compress = false
 	}
 
-	c.w.WriteHeader(statusCode)
+	c.ResponseWriter.WriteHeader(statusCode)
 }
 
 func (c *compressWriter) Write(p []byte) (int, error) {
@@ -47,25 +41,20 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 		c.WriteHeader(http.StatusOK)
 	}
 
-	// тело редиректов не пишем
-	if c.statusCode >= 300 && c.statusCode < 400 {
+	// редиректы — не пишем тело
+	if c.compress == false && (c.ResponseWriter.Header().Get("Location") != "") {
 		return len(p), nil
 	}
 
 	// решаем, включать ли gzip
-	if !c.compress {
-		if !c.supportsGzip {
-			return c.w.Write(p)
-		}
-
-		ct := c.w.Header().Get("Content-Type")
+	if !c.compress && c.supportsGzip {
+		ct := c.ResponseWriter.Header().Get("Content-Type")
 
 		if strings.HasPrefix(ct, "application/json") ||
 			strings.HasPrefix(ct, "text/html") {
 
-			c.w.Header().Set("Content-Encoding", "gzip")
-			zw := gzip.NewWriter(c.w)
-			c.zw = zw
+			c.ResponseWriter.Header().Set("Content-Encoding", "gzip")
+			c.zw = gzip.NewWriter(c.ResponseWriter)
 			c.compress = true
 		}
 	}
@@ -74,7 +63,7 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 		return c.zw.Write(p)
 	}
 
-	return c.w.Write(p)
+	return c.ResponseWriter.Write(p)
 }
 
 func (c *compressWriter) Close() error {
