@@ -20,7 +20,7 @@ func NewConfig() *Config {
 	flag.StringVar(&cfg.BaseURL, "b", "", "Base URL for shortened links")
 	flag.StringVar(&cfg.LogLevel, "l", "info", "Level log")
 	flag.StringVar(&cfg.FileStorage, "f", "/tmp/short-url-db.json", "save to file")
-	flag.StringVar(&cfg.Dsn, "d", "postgresql://appuser:123@localhost:5432/url_shortener", "addres BD")
+	flag.StringVar(&cfg.Dsn, "d", "", "addres BD")
 
 	flag.Parse()
 
