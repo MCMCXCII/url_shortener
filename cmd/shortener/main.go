@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/MCMCXCII/url_shortener/internal/config"
+	"github.com/MCMCXCII/url_shortener/internal/config/db"
 	"github.com/MCMCXCII/url_shortener/internal/handler"
 	"github.com/MCMCXCII/url_shortener/internal/logger"
 	"github.com/MCMCXCII/url_shortener/internal/middleware"
@@ -25,6 +26,13 @@ func main() {
 	}
 
 	// Репозиторий
+	dbCfg := db.New(cfg.Dsn)
+	db, err := dbCfg.Init()
+	if err != nil {
+		log.Fatalf("cannot connect to DB: %v", err)
+	}
+	postgress_storage := repository.NewPostgresRepository(db)
+	_ = postgress_storage
 	repo := repository.NewMemoryRepository(storage)
 	if err := repo.Load(); err != nil {
 		log.Fatalf("Failed to load data: %v", err)
@@ -39,6 +47,7 @@ func main() {
 	r.Use(middleware.GzipMiddleware)
 	r.With(middleware.ResponseLogger).Post("/", h.HandlerPost)
 	r.With(middleware.ResponseLogger).Post("/api/shorten", h.HandlerJSONPost)
+	r.With(middleware.RequestLogger).Get("/ping", h.HandlerPingGet)
 	r.With(middleware.RequestLogger).Get("/{id}", h.HandlerGet)
 
 	log.Printf("Server listening on %s", cfg.ServerAddress)

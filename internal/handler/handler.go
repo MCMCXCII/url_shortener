@@ -52,6 +52,15 @@ func (h *Handler) HandlerGet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+func (h *Handler) HandlerPingGet(w http.ResponseWriter, r *http.Request) {
+	if err := h.service.Postgres_repo.Ping(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "OK")
+}
+
 type ShortenRequest struct {
 	Url string `json:"url"`
 }

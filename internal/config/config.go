@@ -10,6 +10,7 @@ type Config struct {
 	BaseURL       string
 	LogLevel      string
 	FileStorage   string
+	Dsn           string
 }
 
 func NewConfig() *Config {
@@ -19,6 +20,7 @@ func NewConfig() *Config {
 	flag.StringVar(&cfg.BaseURL, "b", "", "Base URL for shortened links")
 	flag.StringVar(&cfg.LogLevel, "l", "info", "Level log")
 	flag.StringVar(&cfg.FileStorage, "f", "/tmp/short-url-db.json", "save to file")
+	flag.StringVar(&cfg.Dsn, "d", "postgresql://appuser:123@localhost:5432/url_shortener", "addres BD")
 
 	flag.Parse()
 
@@ -32,6 +34,10 @@ func NewConfig() *Config {
 
 	if env := os.Getenv("FILE_STORAGE_PATH"); env != "" {
 		cfg.FileStorage = env
+	}
+
+	if env := os.Getenv("DATABASE_DSN"); env != "" {
+		cfg.Dsn = env
 	}
 
 	if cfg.BaseURL == "" {
