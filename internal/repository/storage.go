@@ -21,5 +21,5 @@ func (p *PostgresRepository) Ping() error {
 }
 
 func (p *PostgresRepository) Save(id, url string)          {}
-func (p *PostgresRepository) Get(id string) (string, bool) { return "", true }
-func (p *PostgresRepository) Load() error
+func (p *PostgresRepository) Get(id string) (string, bool) { return "", false }
+func (p *PostgresRepository) Load() error                  { return nil }
