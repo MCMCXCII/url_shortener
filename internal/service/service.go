@@ -35,3 +35,7 @@ func (s *Shortener) Create(url string) string {
 func (s *Shortener) Get(id string) (string, bool) {
 	return s.repo.Get(id)
 }
+
+func (s *Shortener) Ping() error {
+	return s.repo.Ping()
+}

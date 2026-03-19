@@ -1,20 +1,30 @@
 package repository
 
-import "sync"
+import (
+	"strconv"
+	"sync"
+
+	"github.com/MCMCXCII/url_shortener/internal/logger"
+	"go.uber.org/zap"
+)
 
 type URLRepository interface {
 	Save(id, url string)
 	Get(id string) (string, bool)
+	Load() error
+	Ping() error
 }
-
 type MemoryRepository struct {
 	store map[string]string
 	mu    sync.RWMutex
+	file  *FileStorage
+	count int
 }
 
-func NewMemoryRepository() *MemoryRepository {
+func NewMemoryRepository(file *FileStorage) *MemoryRepository {
 	return &MemoryRepository{
 		store: make(map[string]string),
+		file:  file,
 	}
 }
 
@@ -23,12 +33,49 @@ func (r *MemoryRepository) Save(id, url string) {
 	defer r.mu.Unlock()
 
 	r.store[id] = url
+
+	if r.file != nil {
+		r.count++
+		record := FileRecord{
+			UUID:        strconv.Itoa(r.count),
+			ShortURL:    id,
+			OriginalURL: url,
+		}
+		_ = r.file.WriteToFile(record)
+	}
 }
 
 func (r *MemoryRepository) Get(id string) (string, bool) {
 	r.mu.RLock()
-	defer r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	url, ok := r.store[id]
 	return url, ok
+}
+
+func (r *MemoryRepository) Load() error {
+	if r.file == nil {
+		return nil
+	}
+
+	records, err := LoadFromFile(r.file.filename)
+	if err != nil {
+		logger.Log.Debug("error read file", zap.String("file", r.file.filename))
+		return err
+	}
+	for _, rec := range records {
+		r.store[rec.ShortURL] = rec.OriginalURL
+
+		id, err := strconv.Atoi(rec.UUID)
+		if err == nil && id > r.count {
+			r.count = id
+		}
+	}
+
+	return nil
+
+}
+
+func (r *MemoryRepository) Ping() error {
+	return nil
 }
