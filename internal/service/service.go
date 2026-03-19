@@ -7,8 +7,7 @@ import (
 )
 
 type Shortener struct {
-	repo          repository.URLRepository
-	Postgres_repo repository.PostgresRepository
+	repo repository.URLRepository
 }
 
 func NewShortener(repo repository.URLRepository) *Shortener {
@@ -35,4 +34,8 @@ func (s *Shortener) Create(url string) string {
 
 func (s *Shortener) Get(id string) (string, bool) {
 	return s.repo.Get(id)
+}
+
+func (s *Shortener) Ping() error {
+	return s.repo.Ping()
 }

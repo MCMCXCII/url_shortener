@@ -53,8 +53,8 @@ func (h *Handler) HandlerGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandlerPingGet(w http.ResponseWriter, r *http.Request) {
-	if err := h.service.Postgres_repo.Ping(); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	if err := h.service.Ping(); err != nil {
+		http.Error(w, "database connection error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)

@@ -25,16 +25,20 @@ func main() {
 		log.Fatalf("Failed to initialize storage: %v", err)
 	}
 	// Репозиторий
+	var repo repository.URLRepository
+
 	if cfg.Dsn != "" {
 		dbCfg := db.New(cfg.Dsn)
-		db, err := dbCfg.Init()
+		dbConn, err := dbCfg.Init()
 		if err != nil {
-			log.Fatalf("cannot connect to DB: %v", err)
+			log.Printf("DB not available: %v", err)
+			repo = repository.NewMemoryRepository(storage)
+		} else {
+			repo = repository.NewPostgresRepository(dbConn)
 		}
-		postgress_storage := repository.NewPostgresRepository(db)
-		_ = postgress_storage
+	} else {
+		repo = repository.NewMemoryRepository(storage)
 	}
-	repo := repository.NewMemoryRepository(storage)
 
 	if err := repo.Load(); err != nil {
 		log.Fatalf("Failed to load data: %v", err)

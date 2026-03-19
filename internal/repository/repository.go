@@ -11,8 +11,9 @@ import (
 type URLRepository interface {
 	Save(id, url string)
 	Get(id string) (string, bool)
+	Load() error
+	Ping() error
 }
-
 type MemoryRepository struct {
 	store map[string]string
 	mu    sync.RWMutex
@@ -73,4 +74,8 @@ func (r *MemoryRepository) Load() error {
 
 	return nil
 
+}
+
+func (r *MemoryRepository) Ping() error {
+	return nil
 }
