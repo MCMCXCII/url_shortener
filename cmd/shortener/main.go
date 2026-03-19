@@ -38,7 +38,7 @@ func main() {
 		log.Fatalf("Failed to load data: %v", err)
 	}
 
-	// Сервис и хендлеры
+	// Сервис и хендлеры   !
 	svc := service.NewShortener(repo)
 	h := handler.NewHandler(svc, cfg)
 
