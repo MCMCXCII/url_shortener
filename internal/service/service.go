@@ -26,12 +26,22 @@ func generateShortID() string {
 	return string(b)
 }
 
-func (s *Shortener) Create(url string) string {
+func (s *Shortener) Create(url string) (string, error) {
 	id := generateShortID()
-	s.repo.Save(id, url)
-	return id
+	err := s.repo.Save(id, url)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
 }
 
 func (s *Shortener) Get(id string) (string, bool) {
 	return s.repo.Get(id)
+}
+
+func (s *Shortener) Ping() error {
+	if pinger, ok := s.repo.(repository.Pinger); ok {
+		return pinger.Ping()
+	}
+	return nil
 }

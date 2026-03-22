@@ -32,7 +32,11 @@ func (h *Handler) HandlerPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := h.service.Create(string(body))
+	id, err := h.service.Create(string(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	shortURL := h.cfg.BaseURL + "/" + id
 	w.Header().Set("Content-Type", "text/plain")
@@ -52,6 +56,15 @@ func (h *Handler) HandlerGet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+func (h *Handler) HandlerPingGet(w http.ResponseWriter, r *http.Request) {
+	if err := h.service.Ping(); err != nil {
+		http.Error(w, "database connection error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "OK")
+}
+
 type ShortenRequest struct {
 	Url string `json:"url"`
 }
@@ -68,7 +81,12 @@ func (h *Handler) HandlerJSONPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	id := h.service.Create(body.Url)
+	id, err := h.service.Create(body.Url)
+	if err != nil {
+		logger.Log.Debug("db select error")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	shortURL := h.cfg.BaseURL + "/" + id
 	resp := ShortenResponse{
@@ -76,5 +94,9 @@ func (h *Handler) HandlerJSONPost(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
