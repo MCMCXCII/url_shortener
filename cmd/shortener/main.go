@@ -25,23 +25,13 @@ func main() {
 		log.Fatalf("Failed to initialize storage: %v", err)
 	}
 	// Репозиторий
-	var repo repository.URLRepository
 
-	if cfg.Dsn != "" {
-		dbCfg := db.New(cfg.Dsn)
-		dbConn, err := dbCfg.Init()
-		if err != nil {
-			log.Printf("DB not available: %v", err)
-			repo = repository.NewMemoryRepository(storage)
-		} else {
-			repo = repository.NewPostgresRepository(dbConn)
+	repo := initRepository(cfg, storage)
+
+	if loader, ok := repo.(repository.Loader); ok {
+		if err := loader.Load(); err != nil {
+			log.Fatalf("Failed to load data: %v", err)
 		}
-	} else {
-		repo = repository.NewMemoryRepository(storage)
-	}
-
-	if err := repo.Load(); err != nil {
-		log.Fatalf("Failed to load data: %v", err)
 	}
 
 	// Сервис и хендлеры   !
@@ -67,4 +57,21 @@ func initStorage(filename string) (*repository.FileStorage, error) {
 		return nil, nil
 	}
 	return repository.NewFileStorage(filename)
+}
+
+func initRepository(cfg *config.Config, storage *repository.FileStorage) repository.URLRepository {
+	if cfg.Dsn == "" {
+		logger.Log.Info("use memory repository")
+		return repository.NewMemoryRepository(storage)
+	}
+
+	dbCfg := db.New(cfg.Dsn)
+	dbConn, err := dbCfg.Init()
+	if err != nil {
+		log.Printf("DB not available: %v", err)
+		logger.Log.Info("use memory repository")
+		return repository.NewMemoryRepository(storage)
+	}
+	logger.Log.Info("use postgres repository")
+	return repository.NewPostgresRepository(dbConn)
 }

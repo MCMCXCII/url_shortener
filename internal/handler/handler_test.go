@@ -28,7 +28,10 @@ func TestHandlerGet(t *testing.T) {
 	originalURL := "http://practicticum.yandex.ru/"
 
 	// Create возвращает ID
-	id := svc.Create(originalURL)
+	id, err := svc.Create(originalURL)
+	if err != nil {
+		t.Errorf("error save to db")
+	}
 
 	h := NewHandler(svc, cfg)
 

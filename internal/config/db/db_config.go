@@ -35,5 +35,16 @@ func (c *DBConfig) Init() (*sql.DB, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
+
+	_, err = db.Exec(`
+	CREATE TABLE IF NOT EXISTS urls (
+		id SERIAL PRIMARY KEY,
+		short TEXT NOT NULL,
+		original TEXT NOT NULL
+		);
+	`)
+	if err != nil {
+		return nil, err
+	}
 	return db, nil
 }

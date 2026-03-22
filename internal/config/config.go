@@ -16,7 +16,7 @@ type Config struct {
 func NewConfig() *Config {
 	cfg := &Config{}
 
-	flag.StringVar(&cfg.ServerAddress, "a", "localhost:8080", "HTTP server address")
+	flag.StringVar(&cfg.ServerAddress, "a", "172.19.9.107:8080", "HTTP server address")
 	flag.StringVar(&cfg.BaseURL, "b", "", "Base URL for shortened links")
 	flag.StringVar(&cfg.LogLevel, "l", "info", "Level log")
 	flag.StringVar(&cfg.FileStorage, "f", "/tmp/short-url-db.json", "save to file")

@@ -32,7 +32,11 @@ func (h *Handler) HandlerPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := h.service.Create(string(body))
+	id, err := h.service.Create(string(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	shortURL := h.cfg.BaseURL + "/" + id
 	w.Header().Set("Content-Type", "text/plain")
@@ -77,7 +81,12 @@ func (h *Handler) HandlerJSONPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	id := h.service.Create(body.Url)
+	id, err := h.service.Create(body.Url)
+	if err != nil {
+		logger.Log.Debug("db select error")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	shortURL := h.cfg.BaseURL + "/" + id
 	resp := ShortenResponse{
