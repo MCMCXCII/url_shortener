@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/MCMCXCII/url_shortener/internal/config"
+	"github.com/MCMCXCII/url_shortener/internal/config/db"
 	"github.com/MCMCXCII/url_shortener/internal/handler"
 	"github.com/MCMCXCII/url_shortener/internal/logger"
 	"github.com/MCMCXCII/url_shortener/internal/middleware"
@@ -15,24 +16,63 @@ import (
 
 func main() {
 	cfg := config.NewConfig()
+	logger.Initialize(cfg.LogLevel)
+	log.Printf("Starting server with config: %+v", cfg)
 
-	repo := repository.NewMemoryRepository()
+	// Инициализация хранилища
+	storage, err := initStorage(cfg.FileStorage)
+	if err != nil {
+		log.Fatalf("Failed to initialize storage: %v", err)
+	}
+	// Репозиторий
+
+	repo := initRepository(cfg, storage)
+
+	if loader, ok := repo.(repository.Loader); ok {
+		if err := loader.Load(); err != nil {
+			log.Fatalf("Failed to load data: %v", err)
+		}
+	}
+
+	// Сервис и хендлеры   !
 	svc := service.NewShortener(repo)
 	h := handler.NewHandler(svc, cfg)
-	logger.Initialize(cfg.LogLevel)
 
+	// Роутер и middleware
 	r := chi.NewRouter()
+	r.Use(middleware.GzipMiddleware)
+	r.With(middleware.ResponseLogger).Post("/", h.HandlerPost)
+	r.With(middleware.ResponseLogger).Post("/api/shorten", h.HandlerJSONPost)
+	r.With(middleware.ResponseLogger).Post("/api/shorten/batch", h.HandlerBatchPost)
+	r.With(middleware.RequestLogger).Get("/ping", h.HandlerPingGet)
+	r.With(middleware.RequestLogger).Get("/{id}", h.HandlerGet)
 
-	r.Use(middleware.RequestLogger)
-	r.Use(middleware.ResponseLogger)
-	r.Group(func(r chi.Router) {
-		r.Use(middleware.GzipMiddleware)
-		r.Post("/api/shorten", h.HandlerJSONPost)
-		r.Post("/", h.HandlerPost)
-	})
-	r.Get("/{id}", h.HandlerGet)
-	log.Printf("Server starts: %s", cfg.ServerAddress)
+	log.Printf("Server listening on %s", cfg.ServerAddress)
 	if err := http.ListenAndServe(cfg.ServerAddress, r); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Server stopped with error: %v", err)
 	}
+}
+
+func initStorage(filename string) (*repository.FileStorage, error) {
+	if filename == "" {
+		return nil, nil
+	}
+	return repository.NewFileStorage(filename)
+}
+
+func initRepository(cfg *config.Config, storage *repository.FileStorage) repository.URLRepository {
+	if cfg.Dsn == "" {
+		logger.Log.Info("use memory repository")
+		return repository.NewMemoryRepository(storage)
+	}
+
+	dbCfg := db.New(cfg.Dsn)
+	dbConn, err := dbCfg.Init()
+	if err != nil {
+		log.Printf("DB not available: %v", err)
+		logger.Log.Info("use memory repository")
+		return repository.NewMemoryRepository(storage)
+	}
+	logger.Log.Info("use postgres repository")
+	return repository.NewPostgresRepository(dbConn)
 }

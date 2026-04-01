@@ -32,7 +32,11 @@ func (h *Handler) HandlerPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := h.service.Create(string(body))
+	id, err := h.service.Create(string(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	shortURL := h.cfg.BaseURL + "/" + id
 	w.Header().Set("Content-Type", "text/plain")
@@ -52,6 +56,15 @@ func (h *Handler) HandlerGet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+func (h *Handler) HandlerPingGet(w http.ResponseWriter, r *http.Request) {
+	if err := h.service.Ping(); err != nil {
+		http.Error(w, "database connection error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "OK")
+}
+
 type ShortenRequest struct {
 	Url string `json:"url"`
 }
@@ -68,7 +81,12 @@ func (h *Handler) HandlerJSONPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	id := h.service.Create(body.Url)
+	id, err := h.service.Create(body.Url)
+	if err != nil {
+		logger.Log.Debug("db select error")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 
 	shortURL := h.cfg.BaseURL + "/" + id
 	resp := ShortenResponse{
@@ -76,5 +94,63 @@ func (h *Handler) HandlerJSONPost(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type BatchRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type BatchResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+func (h *Handler) HandlerBatchPost(w http.ResponseWriter, r *http.Request) {
+	var req []BatchRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if len(req) == 0 {
+		http.Error(w, "empty batch", http.StatusBadRequest)
+		return
+	}
+
+	// преобразуем в service формат
+	input := make([]service.BatchInput, 0, len(req))
+	for _, item := range req {
+		input = append(input, service.BatchInput{
+			CorrelationID: item.CorrelationID,
+			OriginalURL:   item.OriginalURL,
+		})
+	}
+
+	// вызываем сервис
+	result, err := h.service.CreateBatch(input, h.cfg.BaseURL)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// обратно в handler формат
+	resp := make([]BatchResponse, 0, len(result))
+	for _, item := range result {
+		resp = append(resp, BatchResponse{
+			CorrelationID: item.CorrelationID,
+			ShortURL:      item.ShortURL,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	_ = json.NewEncoder(w).Encode(resp)
 }

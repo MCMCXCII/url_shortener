@@ -14,18 +14,24 @@ import (
 )
 
 func TestHandlerGet(t *testing.T) {
-	repo := repository.NewMemoryRepository()
-	svc := service.NewShortener(repo)
-
 	cfg := &config.Config{
 		ServerAddress: "localhost:8080",
 		BaseURL:       "http://localhost:8080",
+		FileStorage:   "/tmp/short-url-db.json",
 	}
-
+	storage, err := repository.NewFileStorage(cfg.FileStorage)
+	if err != nil {
+		t.Errorf("error file")
+	}
+	repo := repository.NewMemoryRepository(storage)
+	svc := service.NewShortener(repo)
 	originalURL := "http://practicticum.yandex.ru/"
 
 	// Create возвращает ID
-	id := svc.Create(originalURL)
+	id, err := svc.Create(originalURL)
+	if err != nil {
+		t.Errorf("error save to db")
+	}
 
 	h := NewHandler(svc, cfg)
 
@@ -48,13 +54,17 @@ func TestHandlerGet(t *testing.T) {
 }
 
 func TestHandlerJSONPost(t *testing.T) {
-	repo := repository.NewMemoryRepository()
-	svc := service.NewShortener(repo)
-
 	cfg := &config.Config{
 		ServerAddress: "localhost:8080",
 		BaseURL:       "http://localhost:8080",
+		FileStorage:   "/tmp/short-url-db.json",
 	}
+	storage, err := repository.NewFileStorage(cfg.FileStorage)
+	if err != nil {
+		t.Errorf("error file")
+	}
+	repo := repository.NewMemoryRepository(storage)
+	svc := service.NewShortener(repo)
 	h := NewHandler(svc, cfg)
 	jsonBody := `{"url":"http://practicticum.yandex.ru/"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(jsonBody))
