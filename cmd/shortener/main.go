@@ -43,6 +43,7 @@ func main() {
 	r.Use(middleware.GzipMiddleware)
 	r.With(middleware.ResponseLogger).Post("/", h.HandlerPost)
 	r.With(middleware.ResponseLogger).Post("/api/shorten", h.HandlerJSONPost)
+	r.With(middleware.ResponseLogger).Post("/api/shorten/batch", h.HandlerBatchPost)
 	r.With(middleware.RequestLogger).Get("/ping", h.HandlerPingGet)
 	r.With(middleware.RequestLogger).Get("/{id}", h.HandlerGet)
 

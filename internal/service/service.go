@@ -45,3 +45,38 @@ func (s *Shortener) Ping() error {
 	}
 	return nil
 }
+
+type BatchInput struct {
+	CorrelationID string
+	OriginalURL   string
+}
+
+type BatchOutput struct {
+	CorrelationID string
+	ShortURL      string
+}
+
+func (s *Shortener) CreateBatch(items []BatchInput, baseURL string) ([]BatchOutput, error) {
+	repoItems := make([]repository.BatchItem, 0, len(items))
+	resp := make([]BatchOutput, 0, len(items))
+
+	for _, item := range items {
+		id := generateShortID()
+
+		repoItems = append(repoItems, repository.BatchItem{
+			ID:  id,
+			URL: item.OriginalURL,
+		})
+
+		resp = append(resp, BatchOutput{
+			CorrelationID: item.CorrelationID,
+			ShortURL:      baseURL + "/" + id,
+		})
+	}
+
+	if err := s.repo.SaveBatch(repoItems); err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}

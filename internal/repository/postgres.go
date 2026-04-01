@@ -42,3 +42,28 @@ func (p *PostgresRepository) Get(id string) (string, bool) {
 	}
 	return original, true
 }
+
+func (p *PostgresRepository) SaveBatch(items []BatchItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+
+	tx, err := p.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`INSERT INTO urls (short, original) VALUES ($1, $2)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, item := range items {
+		if _, err := stmt.Exec(item.ID, item.URL); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}

@@ -70,3 +70,23 @@ func (r *MemoryRepository) Load() error {
 	return nil
 
 }
+
+func (r *MemoryRepository) SaveBatch(items []BatchItem) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, item := range items {
+		r.store[item.ID] = item.URL
+
+		if r.file != nil {
+			r.count++
+			record := FileRecord{
+				UUID:        strconv.Itoa(r.count),
+				ShortURL:    item.ID,
+				OriginalURL: item.URL,
+			}
+			_ = r.file.WriteToFile(record)
+		}
+	}
+	return nil
+}
