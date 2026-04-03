@@ -89,7 +89,7 @@ func (p *PostgresRepository) GetByOriginal(original string) (string, bool) {
 	row := p.db.QueryRow(`
 	SELECT short
 	FROM urls
-	WHERE original == $1
+	WHERE original = $1
 	`, original)
 
 	err := row.Scan(&short)
