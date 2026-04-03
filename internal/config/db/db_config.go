@@ -40,7 +40,7 @@ func (c *DBConfig) Init() (*sql.DB, error) {
 	db.Exec(`CREATE TABLE IF NOT EXISTS urls(
     id SERIAL PRIMARY KEY,
     short TEXT NOT NULL,
-    original TEXT NOT NULL
+    original TEXT UNIQUE NOT NULL
 );`)
 	return db, nil
 }

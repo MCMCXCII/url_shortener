@@ -24,8 +24,23 @@ func (p *PostgresRepository) Ping() error {
 }
 
 func (p *PostgresRepository) Save(id, url string) error {
-	_, err := p.db.Exec(`INSERT INTO urls (short, original) VALUES ($1, $2)`, id, url)
-	return err
+	res, err := p.db.Exec(`
+	INSERT INTO urls (short, original)
+	VALUES ($1, $2)
+	ON CONFLICT (original) DO NOTHING`, id, url)
+
+	if err != nil {
+		return fmt.Errorf("insert url: %w", err)
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rows == 0 {
+		return ErrOriginalURLExists
+	}
+	return nil
 }
 func (p *PostgresRepository) Get(id string) (string, bool) {
 	var original string
@@ -66,4 +81,24 @@ func (p *PostgresRepository) SaveBatch(items []BatchItem) error {
 		}
 	}
 	return tx.Commit()
+}
+
+func (p *PostgresRepository) GetByOriginal(original string) (string, bool) {
+	var short string
+
+	row := p.db.QueryRow(`
+	SELECT short
+	FROM urls
+	WHERE original == $1
+	`, original)
+
+	err := row.Scan(&short)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", false
+		}
+		logger.Log.Debug("error select by original", zap.String("original", original))
+		return "", false
+	}
+	return short, true
 }

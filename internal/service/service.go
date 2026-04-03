@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
 
 	"github.com/MCMCXCII/url_shortener/internal/repository"
@@ -26,13 +28,20 @@ func generateShortID() string {
 	return string(b)
 }
 
-func (s *Shortener) Create(url string) (string, error) {
+func (s *Shortener) Create(url string) (string, bool, error) {
 	id := generateShortID()
 	err := s.repo.Save(id, url)
 	if err != nil {
-		return "", err
+		if errors.Is(err, repository.ErrOriginalURLExists) {
+			existingID, ok := s.repo.GetByOriginal(url)
+			if !ok {
+				return "", false, fmt.Errorf("get existing short url: %w", err)
+			}
+			return existingID, true, nil
+		}
+		return "", false, err
 	}
-	return id, nil
+	return id, false, nil
 }
 
 func (s *Shortener) Get(id string) (string, bool) {

@@ -32,7 +32,7 @@ func (h *Handler) HandlerPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.service.Create(string(body))
+	id, exists, err := h.service.Create(string(body))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -40,7 +40,11 @@ func (h *Handler) HandlerPost(w http.ResponseWriter, r *http.Request) {
 
 	shortURL := h.cfg.BaseURL + "/" + id
 	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusCreated)
+	if exists {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 	fmt.Fprint(w, shortURL)
 }
 
@@ -81,7 +85,7 @@ func (h *Handler) HandlerJSONPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	id, err := h.service.Create(body.Url)
+	id, exists, err := h.service.Create(body.Url)
 	if err != nil {
 		logger.Log.Debug("db select error")
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -93,7 +97,11 @@ func (h *Handler) HandlerJSONPost(w http.ResponseWriter, r *http.Request) {
 		Result: shortURL,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	if exists {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

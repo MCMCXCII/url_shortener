@@ -90,3 +90,15 @@ func (r *MemoryRepository) SaveBatch(items []BatchItem) error {
 	}
 	return nil
 }
+
+func (r *MemoryRepository) GetByOriginal(original string) (string, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for short, url := range r.store {
+		if url == original {
+			return short, true
+		}
+	}
+	return "", false
+}
