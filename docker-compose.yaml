@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: shortener_postgres
+    environment:
+      POSTGRES_USER: url_user
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: url_shortener
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U url_user -d url_shortener"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: shortener_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SERVER_ADDRESS: "0.0.0.0:8080"
+      BASE_URL: "http://localhost:8080"
+      LOG_LEVEL: "info"
+      FILE_STORAGE_PATH: "/tmp/short-url-db.json"
+      DATABASE_DSN: "postgres://url_user:123@postgres:5432/url_shortener?sslmode=disable"
+    ports:
+     - "8080:8080"
+
+volumes:
+  postgres_data:
