@@ -36,7 +36,7 @@ func New(dsn string) (DB, error) {
 
 	conn.SetMaxOpenConns(10)
 	conn.SetConnMaxLifetime(time.Hour)
-	conn.SetConnMaxIdleTime(10)
+	conn.SetConnMaxIdleTime(10 * time.Minute)
 
 	if err := conn.Ping(); err != nil {
 		conn.Close()
