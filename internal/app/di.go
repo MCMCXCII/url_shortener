@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// diContainer — контейнер зависимостей с ленивой инициализацией.
+// diContainer — контейнер зависимостей с ленивой инициализацией).
 
 type diContainer struct {
 	cfg *config.Config
