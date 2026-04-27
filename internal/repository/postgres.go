@@ -4,15 +4,16 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/MCMCXCII/url_shortener/internal/database"
 	"github.com/MCMCXCII/url_shortener/internal/logger"
 	"go.uber.org/zap"
 )
 
 type PostgresRepository struct {
-	db *sql.DB
+	db database.DB
 }
 
-func NewPostgresRepository(db *sql.DB) *PostgresRepository {
+func NewPostgresRepository(db database.DB) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
