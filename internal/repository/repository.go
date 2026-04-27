@@ -1,34 +1,25 @@
 package repository
 
-import "sync"
+import "errors"
 
 type URLRepository interface {
-	Save(id, url string)
+	Save(id, url string) error
+	SaveBatch(items []BatchItem) error
 	Get(id string) (string, bool)
+	GetByOriginal(original string) (string, bool)
 }
 
-type MemoryRepository struct {
-	store map[string]string
-	mu    sync.RWMutex
+type Pinger interface {
+	Ping() error
 }
 
-func NewMemoryRepository() *MemoryRepository {
-	return &MemoryRepository{
-		store: make(map[string]string),
-	}
+type Loader interface {
+	Load() error
 }
 
-func (r *MemoryRepository) Save(id, url string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.store[id] = url
+type BatchItem struct {
+	ID  string
+	URL string
 }
 
-func (r *MemoryRepository) Get(id string) (string, bool) {
-	r.mu.RLock()
-	defer r.mu.RLock()
-
-	url, ok := r.store[id]
-	return url, ok
-}
+var ErrOriginalURLExists = errors.New("original url already exists")
