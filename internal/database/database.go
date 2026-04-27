@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MCMCXCII/url_shortener/internal/logger"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 )
 
